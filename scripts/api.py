@@ -7,9 +7,9 @@ from PIL import Image
 import numpy as np
 
 from modules.api.api import encode_pil_to_base64, decode_base64_to_image
-from scripts.sam import sam_predict, dino_predict, update_mask, cnet_seg, categorical_mask
+from scripts.sam import sam_predict, dino_predict, update_mask, cnet_seg, categorical_mask,sam_automask_predict
 from scripts.sam import sam_model_list
-
+import time
 
 def decode_to_pil(image):
     if os.path.exists(image):
@@ -83,6 +83,26 @@ def sam_api(_: gr.Blocks, app: FastAPI):
             result["masks"] = list(map(encode_to_base64, sam_output_mask_gallery[3:6]))
             result["masked_images"] = list(map(encode_to_base64, sam_output_mask_gallery[6:]))
         return result
+
+
+    class SamAutomaskPredictRequest(BaseModel):
+        sam_model_name: str = "sam_vit_h_4b8939.pth"
+        input_image: str
+        
+
+    @app.post("/sam/automask")
+    async def api_sam_automask_predict(payload: SamAutomaskPredictRequest = Body(...)) -> Any:
+        print(f"SAM API /sam/automask received request")
+        start_time = time.time()
+        payload.input_image = decode_to_pil(payload.input_image).convert('RGBA')
+        automask_rel = sam_automask_predict(
+            payload.sam_model_name,
+            payload.input_image
+        )
+        end_time = time.time()
+        print(f"SAM API /sam/automask finished, total time: {end_time - start_time} ")
+        return automask_rel
+
 
     class DINOPredictRequest(BaseModel):
         input_image: str
@@ -237,6 +257,7 @@ def sam_api(_: gr.Blocks, app: FastAPI):
         if resized_input_img is not None:
             result["resized_input"] = encode_to_base64(resized_input_img)
         return result
+
 
 
 try:
