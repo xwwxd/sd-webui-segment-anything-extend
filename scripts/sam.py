@@ -20,7 +20,8 @@ from sam_hq.build_sam_hq import sam_model_registry
 from scripts.dino import dino_model_list, dino_predict_internal, show_boxes, clear_dino_cache, dino_install_issue_text
 from scripts.auto import clear_sem_sam_cache, register_auto_sam, semantic_segmentation, sem_sam_garbage_collect, image_layer_internal, categorical_mask_image
 from scripts.process_params import SAMProcessUnit, max_cn_num
-
+from segment_anything import SamAutomaticMaskGenerator
+from scripts.mask_process import create_automask_rel_output
 
 refresh_symbol = '\U0001f504'       # 🔄
 sam_model_cache = OrderedDict()
@@ -29,6 +30,7 @@ sd_sam_model_dir = os.path.join(models_path, "sam")
 sam_model_dir = sd_sam_model_dir if os.path.exists(sd_sam_model_dir) else scripts_sam_model_dir 
 sam_model_list = [f for f in os.listdir(sam_model_dir) if os.path.isfile(os.path.join(sam_model_dir, f)) and f.split('.')[-1] != 'txt']
 sam_device = device
+# print(f"sam_model_dir: {sam_model_dir}")
 
 
 txt2img_width: gr.Slider = None
@@ -119,6 +121,7 @@ def refresh_sam_models(*inputs):
 
 def init_sam_model(sam_model_name):
     print(f"Initializing SAM to {sam_device}")
+    print(f"Initializing sam_model_list:  {sam_model_list}")
     if sam_model_name in sam_model_cache:
         sam = sam_model_cache[sam_model_name]
         if shared.cmd_opts.lowvram or (str(sam_device) not in str(sam.device)):
@@ -816,6 +819,33 @@ def on_after_component(component, **_kwargs):
 def on_ui_settings():
     section = ('segment_anything', "Segment Anything")
     shared.opts.add_option("sam_use_local_groundingdino", shared.OptionInfo(False, "Use local groundingdino to bypass C++ problem", section=section))
+
+
+def sam_automask_predict(sam_model_name, input_image):
+    print("Start SAM Processing")
+    if sam_model_name is None:
+        return [], "SAM model not found. Please download SAM model from extension README."
+    if input_image is None:
+        return [], "SAM requires an input image. Please upload an image first."
+    # np img
+    image_np = np.array(input_image)
+    image_np_rgb = image_np[..., :3]
+    sam = init_sam_model(sam_model_name)
+    # print(f"sam: {sam}")
+    print(f"Running SAM Inference ")
+    # automask
+    mask_generator = SamAutomaticMaskGenerator(sam)
+    masks = mask_generator.generate(image_np_rgb)
+    print(f"masks: {len(masks)}")
+    automask_rel = create_automask_rel_output(input_image, masks)
+    width , height = input_image.size
+    res = {
+        "height": height,
+        "width": width,
+        **automask_rel
+    }
+    garbage_collect(sam)
+    return res
 
 
 script_callbacks.on_ui_settings(on_ui_settings)
