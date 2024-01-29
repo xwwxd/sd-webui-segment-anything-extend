@@ -20,12 +20,11 @@ def trans_anns(anns):
     
     list = []
     index = 0
-    # 对每个注释进行处理
+    # transfer every box
     for ann in sorted_anns:
         bool_array = ann['segmentation']
-        # 将boolean类型的数组转换为int类型
         int_array = bool_array.astype(int)
-        # 转化为RLE格式
+        # rel format
         rle = mask2rle(int_array)
         list.append({"index": index, "mask": rle})
         index += 1
@@ -33,15 +32,10 @@ def trans_anns(anns):
 
 
 def create_automask_rel_output(image,automask_data):
-    # 处理sam返回的图层信息
     mask_list = trans_anns(automask_data)
-    
     mask_obj = {
-        # "height": image.shape[0],
-        # "width": image.shape[1],
         "mask_list": mask_list
     }
-    # print(json.dumps(mask_obj))
     
     return mask_obj
 
