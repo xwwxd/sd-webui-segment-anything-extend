@@ -22,6 +22,7 @@ from scripts.auto import clear_sem_sam_cache, register_auto_sam, semantic_segmen
 from scripts.process_params import SAMProcessUnit, max_cn_num
 from segment_anything import SamAutomaticMaskGenerator
 from scripts.mask_process import create_automask_rel_output
+from pycocotools import mask
 
 refresh_symbol = '\U0001f504'       # 🔄
 sam_model_cache = OrderedDict()
@@ -831,21 +832,29 @@ def sam_automask_predict(sam_model_name, input_image):
     image_np = np.array(input_image)
     image_np_rgb = image_np[..., :3]
     sam = init_sam_model(sam_model_name)
-    # print(f"sam: {sam}")
     print(f"Running SAM Inference ")
     # automask
     mask_generator = SamAutomaticMaskGenerator(sam)
     masks = mask_generator.generate(image_np_rgb)
-    print(f"masks: {len(masks)}")
+    
+    print(f"len masks: {len(masks)}")
+    # print(f"masks: {masks}")
     automask_rel = create_automask_rel_output(input_image, masks)
     width , height = input_image.size
-    res = {
-        "height": height,
-        "width": width,
-        **automask_rel
-    }
-    garbage_collect(sam)
-    return res
+    try:
+        res = {
+            "height": height,
+            "width": width,
+            # "raw_mask": raw_masks,
+            **automask_rel
+        }
+        # print(f'automask res: {res}')
+        garbage_collect(sam)
+        return res
+    except Exception as e:
+        print(f"res error: {e}")
+        # print('An exception occurred')
+
 
 
 script_callbacks.on_ui_settings(on_ui_settings)

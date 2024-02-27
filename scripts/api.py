@@ -101,6 +101,7 @@ def sam_api(_: gr.Blocks, app: FastAPI):
         )
         end_time = time.time()
         print(f"SAM API /sam/automask finished, total time: {end_time - start_time} ")
+        # print(f'automask automask_rel: {automask_rel}')
         return automask_rel
 
 
